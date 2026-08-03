@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentcontrol.dev/schemas/opa-input.schema.json",
+  "title": "AgentControl OPA input document",
+  "description": "Body sent as {\"input\": <this>} to POST /v1/data/{policy.path}. Verified against refs/opa@515aea3 v1/server/types/types.go:242.",
+  "type": "object",
+  "required": ["agent", "action", "context", "evidence", "trace"],
+  "additionalProperties": false,
+  "properties": {
+    "agent": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 }
+      }
+    },
+    "user": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": ["string", "null"] }
+      }
+    },
+    "task": { "type": ["string", "null"] },
+    "action": {
+      "type": "object",
+      "required": ["tool", "arguments"],
+      "additionalProperties": false,
+      "properties": {
+        "tool": { "type": "string", "minLength": 1 },
+        "arguments": { "type": "object" },
+        "resource": { "type": ["string", "null"] },
+        "tool_type": {
+          "type": ["string", "null"],
+          "enum": ["function", "extension", "datastore", null],
+          "description": "gen_ai.tool.type values, per refs/semantic-conventions-genai docs/gen-ai/gen-ai-spans.md"
+        }
+      }
+    },
+    "context": {
+      "type": "object",
+      "required": ["trust"],
+      "additionalProperties": false,
+      "properties": {
+        "trust": {
+          "type": "string",
+          "enum": ["trusted", "untrusted", "unknown"],
+          "description": "Defaults to 'unknown' when the host supplies nothing. Never silently 'trusted'."
+        },
+        "source": { "type": ["string", "null"] }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "description": "Collector name -> {signal: value}. Always {} in v0.1; policies must tolerate absence.",
+      "additionalProperties": { "type": "object" }
+    },
+    "trace": {
+      "type": "object",
+      "required": ["trace_id", "span_id"],
+      "additionalProperties": false,
+      "properties": {
+        "trace_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+        "span_id": { "type": "string", "pattern": "^[0-9a-f]{16}$" },
+        "thread_id": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

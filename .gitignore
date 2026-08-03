@@ -94,6 +94,10 @@ logs/
 Thumbs.db
 desktop.ini
 
+# Vendored read-only reference clones (see refs/README.md)
+refs/
+!refs/README.md
+
 # Node (docs/tooling, if added)
 node_modules/
 npm-debug.log*
