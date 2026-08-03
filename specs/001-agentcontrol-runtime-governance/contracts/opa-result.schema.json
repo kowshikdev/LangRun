@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentcontrol.dev/schemas/opa-result.schema.json",
+  "title": "AgentControl OPA decision response",
+  "description": "OPA DataResponseV1 as consumed by AgentControl. Verified against refs/opa@515aea3 v1/server/types/types.go:267-282.",
+  "type": "object",
+  "required": ["result"],
+  "properties": {
+    "decision_id": {
+      "type": "string",
+      "description": "OPA audit id. Present only when the decision-log plugin is configured (v1/runtime/runtime.go:930-938); absent otherwise. Maps to agentcontrol.policy.decision_id."
+    },
+    "result": {
+      "type": "object",
+      "required": ["decision", "reason", "policy_id"],
+      "properties": {
+        "decision": {
+          "type": "string",
+          "enum": ["allow", "deny", "review"],
+          "description": "Any other value, or a missing result object, is treated as provider failure and resolved by fail_mode."
+        },
+        "reason": { "type": "string", "minLength": 1 },
+        "policy_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Rule identifier. Always supplied by the policy so FR-022 holds even without OPA decision logging."
+        },
+        "review_timeout_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Required when decision == 'review'. The review window lives in policy, not provider config (FR-016)."
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "decision": { "const": "review" } }, "required": ["decision"] },
+          "then": { "required": ["review_timeout_seconds"] }
+        }
+      ]
+    },
+    "provenance": { "type": "object" },
+    "metrics": { "type": "object" },
+    "warning": { "type": "object" }
+  }
+}
