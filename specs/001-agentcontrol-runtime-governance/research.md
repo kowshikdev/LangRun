@@ -203,3 +203,25 @@ LangSmith tracing, if the host enables it, runs alongside and is not a dependenc
 `ControlPlane` never installs a global `TracerProvider` when one already exists; it acquires a tracer from the ambient provider and only bootstraps a provider when explicitly asked (`providers/tracing/otlp.py`). Hijacking a host application's tracer provider would be a hostile default in a library.
 
 **Governance spans are never sampled out** (FR-019, spec Assumptions): the governance tracer uses `ALWAYS_ON` regardless of the host's sampler. A sampled-away denial is an unauditable denial.
+
+---
+
+## R9 — Two findings from implementing the review-hold restart path (T055)
+
+Found live while writing the T055 restart tests, not predicted in planning. Both verified by direct reproduction, not inferred.
+
+### R9a — `create_agent()` cannot resume a freshly rebuilt graph object (langchain 1.3.14)
+
+Building a **second, independent** `create_agent()`-compiled graph and resuming a thread whose interrupt was raised by a **different** compiled graph object — even with identical topology, identical tools, and a real serializing `AsyncSqliteSaver` (not just `InMemorySaver`) — raises `KeyError('model')` inside `create_agent`'s own conditional-routing logic (`refs/langchain/libs/langchain_v1/langchain/agents/factory.py`, the `model_to_tools` branch construction, `:1652-1666`).
+
+Reproduced with **zero AgentControl code involved**: a bare `AgentMiddleware` calling `interrupt()` directly hits the same error. A hand-built `langgraph.graph.StateGraph` using the exact pattern from the `interrupt()` docstring example (`refs/langgraph/libs/langgraph/langgraph/types.py:833-890`) does **not** exhibit this — resuming from a freshly built graph object against a real `AsyncSqliteSaver` works exactly as documented.
+
+Consequence: a **true process restart** of a `create_agent()`-based deployment — which necessarily rebuilds the compiled graph, since Python objects don't survive process death — cannot resume a held review at all in this pinned version. It fails loudly (an exception), rather than silently mishandling the hold, which is the better of two bad outcomes, but it means SC-006/FR-018's restart clause is **not exercisable end-to-end via `create_agent`** today. Not fixable from a middleware; filed against langchain 1.3.14 / langgraph 1.2.10. `tests/integration/test_review_restart.py`'s module docstring carries the full repro.
+
+### R9b — the fix for AgentControl's own part: `aget_state` must be called with a thread-scoped config, not the tool-task's config
+
+Independent of R9a, testing "this middleware's own in-memory `_pending` record was lost" (a real, narrower scenario than a full process restart — e.g. a pooled/recycled middleware instance sharing a live graph object) surfaced a genuine bug in the original design: `_run_review`'s cold path recomputed the deadline as `now() + window` instead of recovering the one originally persisted, which could let a late approval through past the true deadline.
+
+The fix — `AgentControlMiddleware._recover_hold_from_state` querying `agent.aget_state(config).interrupts` before falling back to `build_hold` — initially still failed to find the interrupt. Cause: `request.runtime.config` inside a `ToolNode` push-task carries a **nested `checkpoint_ns`** scoped to that task (e.g. `tools:<task-id>`), not the top-level thread. Calling `aget_state` with that task-scoped config silently returns an unrelated (typically empty) snapshot rather than raising — so the pending interrupt, which `interrupt()` recorded at the **thread** level, never surfaced. Fix: reduce the config to bare `{"configurable": {"thread_id": ...}}` before calling `aget_state` (`agentcontrol/adapters/langgraph/middleware.py::_thread_level_config`). Confirmed via direct reproduction: the same `aget_state` call against `{"configurable": {"thread_id": ...}}` finds the interrupt every time; against the full task-scoped `request.runtime.config`, it never does.
+
+`StateSnapshot.interrupts` and `CompiledStateGraph.aget_state` are verified at `refs/langgraph/libs/langgraph/langgraph/pregel/main.py:1436` (signature) and `types.py:643-661` (`StateSnapshot` fields, `interrupts: tuple[Interrupt, ...]`).

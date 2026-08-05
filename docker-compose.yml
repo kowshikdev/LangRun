@@ -1,0 +1,33 @@
+# Services the integration and quickstart scenarios need.
+#
+# `decision_logs.console=true` is not cosmetic: without a decision-log plugin OPA
+# omits `decision_id` from every response (refs/opa v1/runtime/runtime.go:930-938),
+# and the telemetry assertions in tests/integration will fail.
+
+services:
+  opa:
+    image: openpolicyagent/opa:latest
+    container_name: agentcontrol-opa
+    ports:
+      - "8181:8181"
+    volumes:
+      - ./policies:/policies:ro
+    command:
+      - "run"
+      - "--server"
+      - "--addr=0.0.0.0:8181"
+      - "--log-level=info"
+      - "--set=decision_logs.console=true"
+      - "/policies"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8181/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  phoenix:
+    image: arizephoenix/phoenix:latest
+    container_name: agentcontrol-phoenix
+    ports:
+      - "6006:6006"   # UI
+      - "4318:4318"   # OTLP/HTTP ingest
