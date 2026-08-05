@@ -38,7 +38,14 @@ class PolicyConfig:
     """How to reach the policy provider, and what to do when it cannot be reached."""
 
     url: str = ""
-    path: str = "agentcontrol/authz"
+    #: Path under `/v1/data/` to the specific *rule*, not the package. Querying the
+    #: bare package path (`agentcontrol/authz`) returns every public rule and var in
+    #: the package as siblings — `result`, `injection_block_threshold`,
+    #: `review_window_seconds` — not the `result` rule's value directly. Verified
+    #: against a real `opa run --server` instance, not just the mocked test transport;
+    #: `/v1/data/agentcontrol/authz` returned `{"result": {"result": {...}, ...}}` in
+    #: practice, one level deeper than `OPAPolicyProvider` expects.
+    path: str = "agentcontrol/authz/result"
     timeout_ms: int = 300
     fail_mode: FailMode = "closed"
 

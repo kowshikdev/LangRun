@@ -9,7 +9,7 @@
 | Setting | Default | Notes |
 |---|---|---|
 | `url` | `""` | Required once a policy provider is configured. |
-| `path` | `"agentcontrol/authz"` | Rego package path under `/v1/data/`. |
+| `path` | `"agentcontrol/authz/result"` | Path to the `result` *rule* under `/v1/data/` — not the bare package path. Querying the package (`agentcontrol/authz`) returns every public rule/var as siblings, one level away from what the client expects. Verified against a real `opa run --server` instance. |
 | `timeout_ms` | `300` | Per-request deadline. Exceeding it is a provider failure (fail-closed), not a policy denial. |
 | `fail_mode` | `"closed"` | `"closed"` denies on provider failure; `"open"` allows and is logged loudly on every use. Set `"open"` only with an explicit, deliberate per-deployment decision. |
 

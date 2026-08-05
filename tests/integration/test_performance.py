@@ -89,7 +89,7 @@ class TestMiddlewareOverhead:
     def test_middleware_overhead_leaves_headroom_under_the_sc002_budget(
         self, respx_mock: respx.MockRouter
     ) -> None:
-        respx_mock.post("/v1/data/agentcontrol/authz").mock(
+        respx_mock.post("/v1/data/agentcontrol/authz/result").mock(
             return_value=httpx.Response(
                 200,
                 json={"result": {"decision": "allow", "reason": "fine", "policy_id": "p.allow"}},

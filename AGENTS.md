@@ -6,7 +6,7 @@ Working guide for any coding agent operating in this repository. Canonical — `
 
 AgentControl: a runtime governance layer that authorizes an AI agent's tool calls before they execute and records the decision as OpenTelemetry telemetry. See [README.md](./README.md) for the product framing.
 
-**v0.1 is implemented.** All four user stories are built under `agentcontrol/`, tested (154 passing, 1 honestly skipped — needs a live MCP server), lint- and type-clean. Two real bugs were found and fixed during implementation via direct reproduction against the real runtime, not guessed at — see research.md §R9 and the "Verify before you write" table below before touching the review-hold or ALLOW-path code, both of which had genuine bugs that only surfaced by running things.
+**v0.1 is implemented.** All four user stories are built under `agentcontrol/`, tested (163 passing, 5 honestly skipped without a live `opa run --server`; 166 pass with one up), lint- and type-clean. Three real bugs were found and fixed during implementation via direct reproduction against the real runtime, not guessed at — see research.md §R9/§R10 and the "Verify before you write" table below before touching the review-hold, ALLOW-path, or OPA-client code. All three had genuine bugs that only surfaced by running things — one of them (§R10) only surfaced after installing a real `opa` binary; every mocked test had missed it. `intercept_mcp_tools` is proven against a real MCP server spun up in-process by the test suite (`tests/support/mcp_echo_server.py`), not skipped.
 
 ## Non-negotiables
 
@@ -33,6 +33,7 @@ The constitution at [.specify/memory/constitution.md](./.specify/memory/constitu
 | Two ALLOW-path spans (decision + execution) | FR-019 requires exactly one; fixed by wrapping execution in the *same* span as the decision (`GovernanceRecorder.governed_execution`). Found by running the span-emission tests, not by inspection. |
 | `create_agent()` resumes a rebuilt graph object the same as the original | It cannot — raises `KeyError('model')` inside its own routing, independent of AgentControl (research R9a). Not fixable in a middleware; a hand-built `StateGraph` does not have this problem. |
 | `request.runtime.config` is safe to pass straight into `agent.aget_state()` | It carries a task-scoped `checkpoint_ns` that silently returns an empty/unrelated snapshot. Strip to bare `{"configurable": {"thread_id": ...}}` first (`_thread_level_config`, research R9b). |
+| `POST /v1/data/agentcontrol/authz` returns the decision object directly | It returns the whole Rego **package** as siblings (`result`, plus the bundle's own threshold constants) — the decision is nested one level deeper, at `.../authz/result`. Every mocked test missed this; only running a real `opa run --server` caught it (research R10). Reflex-check any OPA path against a live server before trusting a mock. |
 
 One sharp edge that is easy to reintroduce: `ToolNode` wraps middleware in a bare `except Exception` with no `GraphBubbleUp` guard. `interrupt()` survives only because the default `handle_tool_errors` re-raises anything that is not a `ToolInvocationError`. A host with a custom handler would silently convert a review hold into a tool error. `adapters/langgraph/adapter.py::_require_reraising_error_handler` checks for exactly this at startup.
 
@@ -74,7 +75,8 @@ pytest tests/conformance -q              # proves every CapabilityManifest field
 pytest tests/unit/test_types.py::TestControlResult::test_review_requires_timeout -q   # single test
 pytest -m "not integration" -q           # skip network-dependent suites
 
-opa test policies/                       # Rego unit tests — needs the opa binary, not run in this sandbox
+opa test policies/                       # Rego unit tests — 6/6 pass (verified with opa 1.19.0)
+pytest tests/integration/test_live_opa.py -m live_opa    # against a real `opa run --server`; auto-skips without one
 ruff check . && mypy agentcontrol         # both clean as of last implementation pass
 ```
 
@@ -103,7 +105,7 @@ This repository uses [Spec Kit](https://github.com/github/spec-kit). Artifacts l
 Do not silently resolve these — they are tracked deliberately:
 
 - **`create_agent()` cannot resume a rebuilt graph object at all** (research R9a, langchain 1.3.14) — a genuine process restart fails loudly with `KeyError('model')`, independent of AgentControl. AgentControl's own state-loss recovery (a lost in-memory record without a process restart) is fixed and tested. Either pin a langchain version where this is confirmed fixed, or document the limitation prominently for `create_agent` users.
-- **`intercept_mcp_tools` has no conformance proof in this environment** — no MCP server available. Test is written and explicitly skipped (`tests/conformance/test_tool_classes.py`), not silently omitted.
+- ~~`intercept_mcp_tools` has no conformance proof~~ — **resolved**. `tests/support/mcp_echo_server.py` is a real `FastMCP` server run as a subprocess; `tests/conformance/test_tool_classes.py::TestInterceptMcpTools` loads its tool through the real `langchain-mcp-adapters` client and proves interception against it. Needed pinning `mcp>=1.0,<2.0` — `langchain-mcp-adapters==0.3.1` fails to import against `mcp==2.0.0` (upstream version skew, not an AgentControl bug).
 - **Live Langfuse/Phoenix round-trip (quickstart Scenario 5) has not been run** — no Docker in this environment. `docker-compose.yml` and `examples/governed_agent.py --export otlp` are ready for it.
 
 ## Conventions

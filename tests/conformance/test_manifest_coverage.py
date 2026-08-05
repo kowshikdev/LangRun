@@ -21,7 +21,7 @@ _COVERAGE: dict[str, str] = {
     "intercept_model_input": "def test_model_input_is_overridable",
     "intercept_model_output": "def test_model_output_is_overridable",
     "intercept_function_tools": "class TestInterceptFunctionTools",
-    "intercept_mcp_tools": "def test_mcp_backed_tool_is_intercepted",
+    "intercept_mcp_tools": "class TestInterceptMcpTools",
     "intercept_hosted_tools": "class TestInterceptHostedTools",
     "block_before_tool": "class TestBlockBeforeTool",
     "modify_tool_arguments": "class TestModifyToolArguments",

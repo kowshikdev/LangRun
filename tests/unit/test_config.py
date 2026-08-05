@@ -30,8 +30,18 @@ class TestPolicyConfig:
             _ = PolicyConfig().decision_url
 
     def test_decision_url_joins_path(self) -> None:
-        config = PolicyConfig(url="http://localhost:8181/", path="agentcontrol/authz")
-        assert config.decision_url == "http://localhost:8181/v1/data/agentcontrol/authz"
+        config = PolicyConfig(url="http://localhost:8181/", path="agentcontrol/authz/result")
+        assert config.decision_url == "http://localhost:8181/v1/data/agentcontrol/authz/result"
+
+    def test_default_path_targets_the_result_rule_not_the_bare_package(self) -> None:
+        """Querying the bare package path returns every public rule/var as siblings
+        (result, injection_block_threshold, review_window_seconds), one level away
+        from what OPAPolicyProvider expects — verified against a real `opa run
+        --server` instance, not just the mocked test transport.
+        """
+        config = PolicyConfig(url="http://localhost:8181")
+        assert config.path == "agentcontrol/authz/result"
+        assert config.decision_url == "http://localhost:8181/v1/data/agentcontrol/authz/result"
 
 
 class TestReviewConfig:

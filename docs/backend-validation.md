@@ -4,6 +4,8 @@ Procedure for SC-004 (a denial is explainable from the UI alone) and SC-009 (the
 
 **Status: procedure defined, not yet executed.** This implementation session had no Docker available, so the live round-trip into a real Phoenix or Langfuse instance has not been run. Everything up to the OTLP export boundary is unit- and integration-tested (`tests/unit/test_governance_attributes.py`, `tests/integration/test_correlation.py`, `tests/integration/test_span_cardinality.py`) against an in-memory exporter — what remains unverified is specifically whether a real backend renders the `agentcontrol.*` attributes usably, not whether AgentControl produces them correctly.
 
+Worth keeping in mind while running this: [research.md §R10](../specs/001-agentcontrol-runtime-governance/research.md) found that AgentControl's OPA client had a real endpoint-path bug that every mocked test missed, and it only surfaced once a real `opa` server was actually run. The OTLP export path is exactly as untested against a real backend right now — treat this procedure as similarly likely to surface something a mock couldn't, not as a formality.
+
 ## Procedure
 
 1. Bring up the stack:

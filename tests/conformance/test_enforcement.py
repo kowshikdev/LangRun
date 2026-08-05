@@ -97,7 +97,7 @@ class TestHumanApproval:
     async def test_interrupt_pauses_and_resume_completes(
         self, respx_mock: respx.MockRouter
     ) -> None:
-        respx_mock.post("/v1/data/agentcontrol/authz").mock(return_value=_review())
+        respx_mock.post("/v1/data/agentcontrol/authz/result").mock(return_value=_review())
         config = ControlPlaneConfig(policy=PolicyConfig(url=_URL))
         control = ControlPlane(config=config, policy=OPAPolicyProvider(config.policy))
         model = ScriptedToolCallingModel(

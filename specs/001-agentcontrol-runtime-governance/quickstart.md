@@ -29,11 +29,13 @@ export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
 Verify OPA is answering before anything else:
 
 ```bash
-curl -s localhost:8181/v1/data/agentcontrol/authz \
+curl -s localhost:8181/v1/data/agentcontrol/authz/result \
   -H 'Content-Type: application/json' \
   -d '{"input":{"agent":{"id":"t"},"action":{"tool":"noop","arguments":{}},"context":{"trust":"unknown"},"evidence":{},"trace":{"trace_id":"0","span_id":"0"}}}'
 # expect: {"decision_id":"...","result":{"decision":"allow","reason":"...","policy_id":"agentcontrol.authz.default_allow",...}}
 ```
+
+Note the trailing `/result` — querying the bare package path (`/v1/data/agentcontrol/authz`) returns the whole package document (the `result` rule nested one level deeper, alongside the bundle's `injection_block_threshold`/`review_window_seconds` constants), not the decision object shown above.
 
 An empty `{}` here means the bundle did not load — the SDK treats that as provider failure and denies, which is correct but not what you want to be debugging in Scenario 1.
 

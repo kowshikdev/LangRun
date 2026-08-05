@@ -10,9 +10,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## State of the repository
 
-v0.1 implemented. `agentcontrol/` has all four user stories built; 154 tests passing, 1 honestly skipped (MCP conformance — needs a live server this environment lacks). Two real bugs were found and fixed during implementation by running things, not by inspection — see [research.md §R9](./specs/001-agentcontrol-runtime-governance/research.md) before touching the review-hold or ALLOW-path span code.
+v0.1 implemented. `agentcontrol/` has all four user stories built; 163 tests passing, 5 honestly skipped without a live `opa run --server` — 166 pass with one up. `intercept_mcp_tools` is proven against a real MCP server the test suite spins up itself, not skipped. Three real bugs were found and fixed during implementation by running things, not by inspection — see [research.md §R9/§R10](./specs/001-agentcontrol-runtime-governance/research.md) before touching the review-hold, ALLOW-path span, or OPA-client code.
 
-Two things not yet done: live Langfuse/Phoenix round-trip (quickstart Scenario 5 — no Docker in this environment) and `opa test policies/` (no `opa` binary here; CI runs it).
+One thing not yet done: live Langfuse/Phoenix round-trip (quickstart Scenario 5 — no Docker in this environment). `opa test policies/` (6/6) and `pytest tests/integration/test_live_opa.py` against a real server have both been run and pass.
 
 ## Commands
 
@@ -51,3 +51,4 @@ One authorization decision, made in one place, wrapped in evidence and telemetry
 - No config key may change an authorization outcome. If a threshold needs tuning, it belongs in the Rego bundle.
 - `request.runtime.config` inside a `ToolNode` push-task carries a task-scoped `checkpoint_ns`. Passing it straight to `agent.aget_state()` silently returns the wrong (usually empty) snapshot — strip to `{"configurable": {"thread_id": ...}}` first.
 - `create_agent()` cannot resume a freshly rebuilt graph object (langchain 1.3.14) — verified independent of AgentControl. Don't assume a real process restart can resume a held review; it currently can't, and fails loudly rather than silently.
+- `POST /v1/data/agentcontrol/authz` (the bare package path) does **not** return the decision directly — it returns every public rule/var in the package as siblings, with the decision nested one level deeper. The correct path is `.../authz/result`. Every `respx`-mocked test missed this; only running a real `opa run --server` caught it. Trust a live server over a mock for anything path- or shape-related.
