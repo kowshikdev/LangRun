@@ -59,13 +59,18 @@ Three findings from source verification materially change the design versus the 
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-**Status: VACANT — no gates enforced.**
+**Status: RATIFIED, v1.0.0, PASS.** `.specify/memory/constitution.md` was vacant when this plan was first written (recorded below for history); it has since been ratified with six principles, checked here retroactively during implementation.
 
-`.specify/memory/constitution.md` is the unmodified Spec Kit template: every principle is still a `[PRINCIPLE_N_NAME]` / `[PRINCIPLE_N_DESCRIPTION]` placeholder, and the governance section is `[GOVERNANCE_RULES]`. There are no ratified principles to check this design against, so no gate can pass or fail on evidence.
+| Principle | This plan / implementation |
+|---|---|
+| I. Fail-Closed by Default | §7, R5: every OPA failure mode → `DENY` + `unavailable=True`; fail-open explicit and logged every use |
+| II. No Silent Degradation | §8, capability-manifest.md: capability gaps are hard `attach()` failures; no downgrade path exists or is tested for |
+| III. Upstream Verified, Never Remembered | Every research finding (R1-R9) cites `refs/<path>:<line>`; two implementation-time bugs (R9a/R9b) were themselves found by direct reproduction, not inference |
+| IV. Capabilities Proven, Not Declared | §11 Phase 4 conformance suite exercises the real runtime per manifest field |
+| V. Thresholds Live Only in Policy | §7's Rego bundle carries `injection_block_threshold` and `review_window_seconds`; `data-model.md`'s config table forbids adding more |
+| VI. Standard Telemetry | `core/semconv.py` vendors `gen_ai.*`, namespaces `agentcontrol.*`, W3C correlation only |
 
-This is recorded as a risk, not a pass. A governance product with no stated engineering constitution is a poor look, and three decisions in this plan (test-first for the conformance suite, fail-closed as a non-negotiable, no silent capability downgrade) are exactly the kind of thing a constitution should be pinning down rather than a plan asserting. **Recommendation: run `/speckit-constitution` before implementation begins**, seeding it with at least: fail-closed by default, no silent degradation, upstream interfaces verified against source before use, and every declared capability proven by an executable test.
-
-Re-check after Phase 1: unchanged — still vacant, no violations recorded in Complexity Tracking because there is nothing to violate.
+Historical note (original text, kept for the record): at authoring time the constitution was the unmodified Spec Kit template — every principle a placeholder — so this Constitution Check could not evaluate against evidence. The recommendation then was to run `/speckit-constitution` before implementation; that has since happened.
 
 ## Project Structure
 
@@ -146,9 +151,11 @@ Each is forced by something read in `refs/`, not by preference. Full evidence in
 
 ## Open risk carried into implementation
 
-**SC-006's restart clause is not fully satisfiable in v0.1.** The review deadline is durable — it rides inside the persisted interrupt payload, so a hold can never resolve to `ALLOW` after expiry no matter how long the process was down (FR-018 holds unconditionally). But *actively* resolving an expired hold to `DENY` requires something to resume the thread, and LangGraph checkpointers expose no portable "list every thread with a pending interrupt" query. v0.1 therefore ships: (a) deadline enforced at resume time — the correctness guarantee; (b) an in-process watchdog that auto-resolves holds while the process lives — the liveness guarantee; (c) a documented gap for a process that dies mid-hold and is never resumed.
+**SC-006's restart clause is not fully satisfiable in v0.1.** The review deadline is durable — it rides inside the persisted interrupt payload, so a hold can never resolve to `ALLOW` after expiry no matter how long the process was down (FR-018 holds unconditionally; proven end-to-end in `tests/integration/test_review_restart.py`, including recovery from loss of AgentControl's own in-memory state via `_recover_hold_from_state` reading `agent.aget_state()`, research R9b). But *actively* resolving an expired hold to `DENY` requires something to resume the thread, and LangGraph checkpointers expose no portable "list every thread with a pending interrupt" query. v0.1 therefore ships: (a) deadline enforced at resume time — the correctness guarantee, now proven durable across AgentControl's own state loss; (b) an in-process watchdog that auto-resolves holds while the process lives — the liveness guarantee, tested in `test_review_watchdog.py`; (c) a documented gap for a process that dies mid-hold and is never resumed.
 
-Recommendation: amend SC-006 to scope the ≤30 s bound to a live process, and track cross-restart sweeping as v0.2 work. Flagged rather than silently absorbed, and re-raised in `/speckit-analyze`.
+**Escalation found during implementation (research R9a): the gap is larger than planned for `create_agent`-based deployments specifically.** A real process restart necessarily rebuilds the compiled graph object, and `create_agent()` in the pinned langchain 1.3.14 cannot resume a freshly rebuilt graph object at all — it raises `KeyError('model')` inside its own routing logic, reproduced independent of any AgentControl code. A hand-built `langgraph.graph.StateGraph` does not have this problem. This means the restart scenario SC-006 describes is not exercisable end-to-end via the documented `create_agent` integration path in this pinned version; a real restart fails loudly rather than mishandling the hold, which is the safer of the two failure modes, but it is not the graceful resume the success criterion implies.
+
+Recommendation: amend SC-006 to scope the ≤30 s bound to a live process (unchanged from original recommendation); additionally, either pin a langchain version where `create_agent` resume-after-rebuild is confirmed working, or document the restart limitation prominently for `create_agent` users and track it as a v0.2 dependency-version gate. Flagged rather than silently absorbed, and re-raised in `/speckit-analyze`.
 
 ## Complexity Tracking
 

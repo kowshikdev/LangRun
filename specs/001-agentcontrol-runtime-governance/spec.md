@@ -130,7 +130,7 @@ A platform operator connects the governance layer to an agent runtime that canno
 
 **Telemetry and audit**
 
-- **FR-019**: System MUST emit exactly one governance record per authorization decision to the configured observability destination.
+- **FR-019**: System MUST emit exactly one governance record per authorization decision to the configured observability destination, plus exactly one additional resolution record per human-review hold once that hold reaches a terminal state. A record re-emitted because the runtime replayed an interrupted step MUST be marked as a replay so audit can collapse it.
 - **FR-020**: System MUST express governance records using the industry-standard agent telemetry conventions where they exist, and MUST NOT define a parallel, product-specific event format.
 - **FR-021**: System MUST namespace governance-specific fields so they remain stable for consumers even as the upstream conventions evolve.
 - **FR-022**: Each governance record MUST carry: the verdict, the deciding provider, the policy rule identifier, whether the policy provider was unavailable, the context trust level, the context provenance, each evidence signal gathered, and whether the runtime was actually capable of blocking that call.
@@ -141,11 +141,12 @@ A platform operator connects the governance layer to an agent runtime that canno
 **Capabilities and startup**
 
 - **FR-026**: Every runtime adapter MUST declare, as an explicit machine-readable manifest, which governance capabilities it provides — including whether it can observe model and tool calls, intercept model input and output, intercept each class of tool, block before execution, modify tool arguments, support human approval, and intercept streaming.
-- **FR-027**: System MUST, at startup, derive what enforcement the loaded policy actually requires and compare it against the active adapter's declared capabilities.
+- **FR-027**: System MUST establish what enforcement the loaded policy requires — either derived from the policy itself or accepted as an explicit operator declaration — and compare it against the active adapter's declared capabilities at startup. When the requirement is declared rather than derived, the system MUST additionally verify it at runtime: the first verdict the adapter cannot enforce MUST deny the action and fail loudly, so an incorrect declaration cannot silently under-enforce.
 - **FR-028**: System MUST fail startup with a specific error naming the exact missing capability when the policy requires enforcement the adapter does not provide.
 - **FR-029**: System MUST NOT downgrade to an observation-only mode when a capability is missing.
 - **FR-030**: System MUST prove each declared capability against the real runtime in an automated conformance suite, rather than asserting declared values against themselves.
 - **FR-031**: System MUST run an agent with no measurable behavior change when registered with no providers configured.
+- **FR-032**: System MUST provide an explicit, configurable mechanism by which the integrating application supplies each identity and context field the policy authorizes against — acting agent, human principal, task, target resource, context trust, and context provenance. Each mechanism MUST have a defined fallback when the application supplies nothing, and no fallback may be more permissive than "unknown".
 
 ### Key Entities *(include if feature involves data)*
 
@@ -166,7 +167,8 @@ A platform operator connects the governance layer to an agent runtime that canno
 - **SC-003**: When the policy service is unavailable, 100% of tool calls are denied and 100% of those denials are labeled as unavailability rather than policy denial; zero tools execute.
 - **SC-004**: A reviewer unfamiliar with the codebase can correctly explain who attempted what and why it was blocked, for 5 out of 5 sampled denials, using only the observability backend.
 - **SC-005**: A configuration pairing a policy that requires blocking or approval with a runtime that cannot provide it fails to start 100% of the time, and the error names the specific missing capability in 100% of cases.
-- **SC-006**: An unanswered review hold resolves to denial within 30 seconds of its configured window expiring, in 100% of trials, including trials where the process restarts during the hold.
+- **SC-006**: While the governing process is running, an unanswered review hold resolves to denial within 30 seconds of its configured window expiring, in 100% of trials.
+- **SC-006a**: An expired review hold never resolves to approval, in 100% of trials, including trials where the process is stopped for longer than the window and the hold is answered afterwards. A hold whose process stops and never resumes remains pending and un-executed; actively resolving such holds is deferred to v0.2.
 - **SC-007**: With no providers configured, a governed agent produces outputs identical to the same ungoverned agent and adds under 5 milliseconds per tool call.
 - **SC-008**: 100% of declared capability-manifest fields are covered by a conformance test that exercises the real runtime.
 - **SC-009**: The same exported governance record is readable, with all governance fields visible, in at least two independent observability backends that were not modified for this product.

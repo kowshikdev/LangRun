@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  # Unit tests are offline by contract, so they run everywhere.
+  unit:
+    name: unit (py${{ matrix.python-version }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: uv sync --all-extras
+      - run: uv run ruff check .
+      - run: uv run mypy agentcontrol
+      - run: uv run pytest tests/unit -q
+
+  # The OPA container path is Linux-only, so the network-dependent suites do not
+  # run on the Windows matrix even though development happens there.
+  integration:
+    name: integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+      - run: uv sync --all-extras
+      - name: Start OPA
+        run: |
+          docker run -d --name opa -p 8181:8181 \
+            -v "$PWD/policies:/policies:ro" \
+            openpolicyagent/opa:latest \
+            run --server --addr=0.0.0.0:8181 --set=decision_logs.console=true /policies
+          for i in $(seq 1 30); do
+            curl -sf localhost:8181/health && break || sleep 1
+          done
+      - run: uv run pytest tests/integration -q
+
+  policy:
+    name: rego
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: open-policy-agent/setup-opa@v2
+      - run: opa test policies/ -v
