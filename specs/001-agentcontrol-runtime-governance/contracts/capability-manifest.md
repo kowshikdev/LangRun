@@ -13,7 +13,7 @@ LANGGRAPH_CAPABILITIES = CapabilityManifest(
     intercept_model_input=True,      # ModelRequest override — types.py:85-269
     intercept_model_output=True,     # ModelResponse return — types.py:270-325
     intercept_function_tools=True,   # client-side BaseTools are what ToolNode runs — factory.py:1055-1067
-    intercept_mcp_tools=True,        # MCP tools adapt to BaseTool; no MCP branch in tool_node.py — TO PROVE
+    intercept_mcp_tools=True,        # MCP tools adapt to BaseTool; no MCP branch in tool_node.py — PROVEN
     intercept_hosted_tools=False,    # provider-executed tools never enter ToolNode — factory.py:1055-1067
     block_before_tool=True,          # skipping execute is the documented short-circuit — tool_node.py:1044-1055
     modify_tool_arguments=True,      # request.override(tool_call=...) — tool_node.py:170-199
@@ -88,7 +88,7 @@ Every field is proven by **executing a real `create_agent` graph**, never by ass
 | `intercept_model_input` | overridden input reaches the model |
 | `intercept_model_output` | overridden output reaches the agent |
 | `intercept_function_tools` | a `@tool` function is intercepted |
-| `intercept_mcp_tools` | a **real MCP-backed** tool is intercepted — a fake `BaseTool` proves nothing here |
+| `intercept_mcp_tools` | a **real MCP-backed** tool is intercepted — proven with `tests/support/mcp_echo_server.py` (a real `FastMCP` server, subprocess) via the real `langchain-mcp-adapters` client; a fake `BaseTool` would prove nothing here |
 | `intercept_hosted_tools` | a hosted-tool call is confirmed **not** intercepted; declaring `False` truthfully is the pass condition |
 | `block_before_tool` | tool's side effect never happens; agent receives the denial |
 | `modify_tool_arguments` | tool observes the overridden arguments |

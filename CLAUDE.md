@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## State of the repository
 
-v0.1 implemented. `agentcontrol/` has all four user stories built; 161 tests passing, 6 honestly skipped without extra tooling (5 need a live `opa run --server`, 1 needs a live MCP server) — 166 pass with OPA up. Three real bugs were found and fixed during implementation by running things, not by inspection — see [research.md §R9/§R10](./specs/001-agentcontrol-runtime-governance/research.md) before touching the review-hold, ALLOW-path span, or OPA-client code.
+v0.1 implemented. `agentcontrol/` has all four user stories built; 163 tests passing, 5 honestly skipped without a live `opa run --server` — 166 pass with one up. `intercept_mcp_tools` is proven against a real MCP server the test suite spins up itself, not skipped. Three real bugs were found and fixed during implementation by running things, not by inspection — see [research.md §R9/§R10](./specs/001-agentcontrol-runtime-governance/research.md) before touching the review-hold, ALLOW-path span, or OPA-client code.
 
 One thing not yet done: live Langfuse/Phoenix round-trip (quickstart Scenario 5 — no Docker in this environment). `opa test policies/` (6/6) and `pytest tests/integration/test_live_opa.py` against a real server have both been run and pass.
 

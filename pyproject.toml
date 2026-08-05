@@ -41,6 +41,8 @@ dev = [
     "mypy>=1.11",
     "pyyaml>=6",
     "jsonschema>=4",
+    "langchain-mcp-adapters>=0.3",
+    "mcp>=1.0,<2.0",
 ]
 
 [project.urls]
@@ -63,6 +65,8 @@ dev = [
     "mypy>=1.11",
     "pyyaml>=6",
     "jsonschema>=4",
+    "langchain-mcp-adapters>=0.3",
+    "mcp>=1.0,<2.0",
 ]
 
 # ---------------------------------------------------------------- pytest (T004)

@@ -8,7 +8,7 @@ It is not a new agent framework, tracer, guardrail library, or eval engine. It i
 
 ## Status
 
-**v0.1 implemented.** All four user stories (block unauthorized actions, explain decisions from telemetry, human review with durable timeouts, fail-loud capability validation) are built and tested — 161 tests passing, 6 honestly skipped without extra tooling (5 need a live `opa run --server`, 1 needs a live MCP server). With a real OPA up, that's 166 passing.
+**v0.1 implemented.** All four user stories (block unauthorized actions, explain decisions from telemetry, human review with durable timeouts, fail-loud capability validation) are built and tested — 163 tests passing, 5 honestly skipped without a live `opa run --server` (166 pass with one up). `intercept_mcp_tools` is proven against a real MCP server spun up as part of the test suite, not skipped.
 
 | Artifact | State |
 |---|---|
@@ -104,7 +104,7 @@ It exists because this project composes four fast-moving upstream projects whose
 Carried forward deliberately rather than resolved by assumption:
 
 - **`create_agent()` (langchain 1.3.14) cannot resume a freshly rebuilt graph object.** A real process restart necessarily rebuilds the compiled graph and raises `KeyError('model')` on resume — verified independent of AgentControl (research R9a). Deadline durability across AgentControl's *own* state loss (a lost in-memory record, without a full process restart) is fixed and tested; a full `create_agent` process restart is not resumable at all in this pinned version, and fails loudly rather than silently.
-- **`intercept_mcp_tools` is not conformance-tested in this environment.** No MCP server was available; the test is written and skipped with a clear reason (`tests/conformance/test_tool_classes.py`), not silently omitted.
+- **`intercept_mcp_tools` is proven.** `tests/conformance/test_tool_classes.py` spawns a real MCP server (`tests/support/mcp_echo_server.py`) as a subprocess and loads its tool through the real `langchain-mcp-adapters` client — not a stand-in `BaseTool`. Getting a compatible dependency pair required pinning `mcp>=1.0,<2.0`; `langchain-mcp-adapters==0.3.1` fails to import against `mcp==2.0.0` at all (a real, current upstream version-skew issue, not an AgentControl bug).
 - **Live Langfuse/Phoenix round-trip has not been executed.** No Docker in this environment. `docker-compose.yml` and the example driver are ready; running quickstart Scenario 5 is the remaining verification step.
 
 ## License

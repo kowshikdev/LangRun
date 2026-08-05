@@ -1,10 +1,16 @@
-"""Proves: intercept_function_tools, intercept_hosted_tools; documents the skip for
-intercept_mcp_tools.
+"""Proves: intercept_function_tools, intercept_hosted_tools, intercept_mcp_tools.
+
+`intercept_mcp_tools` is proven against a **real** MCP server (`tests/support/
+mcp_echo_server.py`, run as a subprocess over stdio) and the real
+`langchain-mcp-adapters` client — not a stand-in `BaseTool` — because the manifest
+claim is specifically that MCP-adapted tools enter the same `ToolNode` as any other
+client-side tool, which a fake `BaseTool` cannot demonstrate.
 """
 
 from __future__ import annotations
 
-import pytest
+import sys
+
 from langchain.agents import create_agent
 from langchain.agents.middleware import AgentMiddleware
 from langchain_core.tools import tool
@@ -74,16 +80,69 @@ class TestInterceptHostedTools:
         assert len(tool_node.tools_by_name) == 1
 
 
-@pytest.mark.skip(
-    reason=(
-        "intercept_mcp_tools must be proven with a real MCP-backed tool per "
-        "contracts/capability-manifest.md — a fake BaseTool proves nothing here, "
-        "since the manifest claim is specifically that MCP-adapted tools enter the "
-        "same ToolNode as any other client-side tool. This environment has no MCP "
-        "server available. Structural evidence (no MCP-specific branch exists in "
-        "refs/langgraph/libs/prebuilt/langgraph/prebuilt/tool_node.py) is recorded "
-        "in contracts/capability-manifest.md but is not a substitute for this test."
-    )
-)
-def test_mcp_backed_tool_is_intercepted() -> None:
-    """Requires a live MCP server; not runnable in this environment."""
+class TestInterceptMcpTools:
+    async def test_a_real_mcp_backed_tool_is_intercepted(self) -> None:
+        """Spawns a real MCP server subprocess, loads its tool through the real
+        `langchain-mcp-adapters` client, and confirms it reaches `wrap_tool_call`
+        exactly like a plain `@tool` function — proving `intercept_mcp_tools=True`
+        against the real mechanism rather than an assumption about it.
+        """
+        from langchain_mcp_adapters.client import MultiServerMCPClient
+
+        client = MultiServerMCPClient(
+            {
+                "echo": {
+                    "transport": "stdio",
+                    "command": sys.executable,
+                    "args": ["-m", "tests.support.mcp_echo_server"],
+                }
+            }
+        )
+        mcp_tools = await client.get_tools()
+        assert [t.name for t in mcp_tools] == ["echo"]
+
+        seen: list[str] = []
+
+        class _Recorder(AgentMiddleware):
+            async def awrap_tool_call(self, request, handler):
+                seen.append(request.tool_call["name"])
+                return await handler(request)
+
+        model = ScriptedToolCallingModel(script=[[tool_call("echo", {"text": "hi"}, "c1")]])
+        agent = create_agent(model=model, tools=mcp_tools, middleware=[_Recorder()])
+        # MCP-adapted tools are async-only (StructuredTool with no sync `func`, only a
+        # coroutine — MCP transport is inherently async), so `_Recorder` implements
+        # only awrap_tool_call and this must be ainvoke(). Using the sync hook here
+        # would hit "StructuredTool does not support sync invocation" — a reminder of
+        # exactly the sync/async hook-pairing trap research R1 documents, from the
+        # opposite direction.
+        result = await agent.ainvoke({"messages": [{"role": "user", "content": "go"}]})
+
+        assert seen == ["echo"]
+        tool_messages = [m for m in result["messages"] if type(m).__name__ == "ToolMessage"]
+        assert len(tool_messages) == 1
+        assert tool_messages[0].status != "error"
+
+    async def test_mcp_tool_is_present_in_the_tool_node_registry(self) -> None:
+        """Structural mirror of the hosted-tool exclusion check above: an MCP tool,
+        unlike a hosted one, does show up in `tools_by_name` — it is a genuine
+        client-side `BaseTool`, dispatched through `ToolNode` like any other.
+        """
+        from langchain_mcp_adapters.client import MultiServerMCPClient
+
+        client = MultiServerMCPClient(
+            {
+                "echo": {
+                    "transport": "stdio",
+                    "command": sys.executable,
+                    "args": ["-m", "tests.support.mcp_echo_server"],
+                }
+            }
+        )
+        mcp_tools = await client.get_tools()
+
+        model = ScriptedToolCallingModel(script=[[]])
+        agent = create_agent(model=model, tools=[*mcp_tools, search])
+        tool_node = agent.nodes["tools"].bound
+        assert "echo" in tool_node.tools_by_name
+        assert "search" in tool_node.tools_by_name

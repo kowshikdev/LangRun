@@ -175,7 +175,7 @@ Each field below is a claim the Phase 4 conformance suite must prove by executio
 | `intercept_model_input` | `True` | `ModelRequest` is mutable via override in `wrap_model_call` (`types.py:85-269`) |
 | `intercept_model_output` | `True` | `wrap_model_call` returns `ModelResponse` (`types.py:270-325`) |
 | `intercept_function_tools` | `True` | client-side `BaseTool`s are exactly what `ToolNode` executes (`factory.py:1055-1067`) |
-| `intercept_mcp_tools` | `True` *(to prove)* | MCP tools adapted to `BaseTool` enter the same `ToolNode`; no MCP-specific branch exists in `tool_node.py`. Conformance test must use a real MCP-backed tool, not a stand-in |
+| `intercept_mcp_tools` | `True` — **proven** | MCP tools adapted to `BaseTool` enter the same `ToolNode`; no MCP-specific branch exists in `tool_node.py`. Proven with a real MCP server (`tests/support/mcp_echo_server.py`) and the real `langchain-mcp-adapters` client, not a stand-in (`tests/conformance/test_tool_classes.py::TestInterceptMcpTools`) |
 | `intercept_hosted_tools` | `False` | provider-executed tools are excluded from `ToolNode`, which receives only `middleware_tools + regular_tools` (`factory.py:1055-1067`). Structural, not version-dependent |
 | `block_before_tool` | `True` | skipping `execute` is supported and documented (`tool_node.py:1044-1055`; `types.py:2089-2099`) |
 | `modify_tool_arguments` | `True` | `request.override(tool_call=…)` (`tool_node.py:170-199`) |
