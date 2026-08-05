@@ -157,7 +157,7 @@ class TestMiddlewareStateLoss:
     async def test_late_resume_after_pending_state_is_dropped_still_denies(
         self, respx_mock: respx.MockRouter, traced: TracedAgent
     ) -> None:
-        respx_mock.post("/v1/data/agentcontrol/authz").mock(return_value=_review(timeout=1))
+        respx_mock.post("/v1/data/agentcontrol/authz/result").mock(return_value=_review(timeout=1))
         config = ControlPlaneConfig(policy=PolicyConfig(url=_URL))
         control = ControlPlane(
             config=config, policy=OPAPolicyProvider(config.policy), tracer_provider=traced.provider
@@ -192,7 +192,7 @@ class TestMiddlewareStateLoss:
     async def test_resolution_after_state_loss_is_marked_replay(
         self, respx_mock: respx.MockRouter, traced: TracedAgent
     ) -> None:
-        respx_mock.post("/v1/data/agentcontrol/authz").mock(return_value=_review(timeout=60))
+        respx_mock.post("/v1/data/agentcontrol/authz/result").mock(return_value=_review(timeout=60))
         config = ControlPlaneConfig(policy=PolicyConfig(url=_URL))
         control = ControlPlane(
             config=config, policy=OPAPolicyProvider(config.policy), tracer_provider=traced.provider

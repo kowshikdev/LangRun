@@ -64,7 +64,7 @@ class TestAllowDenyCardinality:
     async def test_one_span_per_allow(
         self, respx_mock: respx.MockRouter, traced: TracedAgent
     ) -> None:
-        respx_mock.post("/v1/data/agentcontrol/authz").mock(return_value=_allow())
+        respx_mock.post("/v1/data/agentcontrol/authz/result").mock(return_value=_allow())
         config = ControlPlaneConfig(policy=PolicyConfig(url=_URL))
         control = ControlPlane(
             config=config, policy=OPAPolicyProvider(config.policy), tracer_provider=traced.provider
@@ -79,7 +79,7 @@ class TestAllowDenyCardinality:
     async def test_concurrent_tool_calls_each_get_their_own_span(
         self, respx_mock: respx.MockRouter, traced: TracedAgent
     ) -> None:
-        respx_mock.post("/v1/data/agentcontrol/authz").mock(return_value=_allow())
+        respx_mock.post("/v1/data/agentcontrol/authz/result").mock(return_value=_allow())
         config = ControlPlaneConfig(policy=PolicyConfig(url=_URL))
         control = ControlPlane(
             config=config, policy=OPAPolicyProvider(config.policy), tracer_provider=traced.provider
@@ -104,7 +104,7 @@ class TestReviewCardinality:
     async def test_approved_hold_produces_pending_plus_one_resolution_span(
         self, respx_mock: respx.MockRouter, traced: TracedAgent
     ) -> None:
-        respx_mock.post("/v1/data/agentcontrol/authz").mock(return_value=_review(timeout=60))
+        respx_mock.post("/v1/data/agentcontrol/authz/result").mock(return_value=_review(timeout=60))
         config = ControlPlaneConfig(policy=PolicyConfig(url=_URL))
         control = ControlPlane(
             config=config, policy=OPAPolicyProvider(config.policy), tracer_provider=traced.provider
@@ -131,7 +131,7 @@ class TestReviewCardinality:
     async def test_rejected_hold_produces_pending_plus_one_resolution_span(
         self, respx_mock: respx.MockRouter, traced: TracedAgent
     ) -> None:
-        respx_mock.post("/v1/data/agentcontrol/authz").mock(return_value=_review(timeout=60))
+        respx_mock.post("/v1/data/agentcontrol/authz/result").mock(return_value=_review(timeout=60))
         config = ControlPlaneConfig(policy=PolicyConfig(url=_URL))
         control = ControlPlane(
             config=config, policy=OPAPolicyProvider(config.policy), tracer_provider=traced.provider

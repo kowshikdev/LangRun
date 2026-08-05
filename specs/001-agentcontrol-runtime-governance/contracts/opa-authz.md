@@ -1,6 +1,6 @@
 # Contract: OPA authorization
 
-**Verified against** `refs/opa@515aea3` — `v1/server/types/types.go:242-282`, `v1/server/server.go:2764-2768`, `v1/runtime/runtime.go:930-938`.
+**Verified against** `refs/opa@515aea3` — `v1/server/types/types.go:242-282`, `v1/server/server.go:2764-2768`, `v1/runtime/runtime.go:930-938` — **and against a real `opa run --server` instance** (opa 1.19.0), which is what caught the path bug below.
 
 ## Endpoint
 
@@ -9,7 +9,13 @@ POST {policy.url}/v1/data/{policy.path}
 Content-Type: application/json
 ```
 
-Default `policy.path` is `agentcontrol/authz`, i.e. the Rego package `agentcontrol.authz`. Timeout 300 ms (`policy.timeout_ms`).
+Default `policy.path` is `agentcontrol/authz/result` — the `result` **rule**, not the bare package path. This matters: `POST /v1/data/agentcontrol/authz` (the package path) returns every public rule and var in the package as siblings —
+
+```json
+{"decision_id": "...", "result": {"result": {"decision": "...", ...}, "injection_block_threshold": 0.8, "review_window_seconds": 900}}
+```
+
+— one level deeper than a bare `result.decision` read expects, because `injection_block_threshold` and `review_window_seconds` (module-level `:=` assignments in the bundle, used as in-policy constants) are themselves public members of the package and show up in its document alongside `result`. Querying the rule directly (`/v1/data/agentcontrol/authz/result`) returns just `{"decision_id": "...", "result": {"decision": "...", ...}}` — the shape the rest of this document and `OPAPolicyProvider` assume. Found by running a real `opa run --server` and comparing the two paths' responses; the `respx`-mocked test transport had been asserting the client's own assumption rather than deriving it from OPA's actual package-resolution semantics. Timeout 300 ms (`policy.timeout_ms`).
 
 ## Request
 

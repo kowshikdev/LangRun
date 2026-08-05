@@ -40,7 +40,7 @@ class TestCorrelation:
     async def test_governance_span_shares_trace_with_surrounding_agent_activity(
         self, respx_mock: respx.MockRouter, traced: TracedAgent
     ) -> None:
-        respx_mock.post("/v1/data/agentcontrol/authz").mock(return_value=_allow())
+        respx_mock.post("/v1/data/agentcontrol/authz/result").mock(return_value=_allow())
         config = ControlPlaneConfig(policy=PolicyConfig(url=_URL))
         control = ControlPlane(
             config=config, policy=OPAPolicyProvider(config.policy), tracer_provider=traced.provider
@@ -67,7 +67,7 @@ class TestCorrelation:
     async def test_decision_with_no_ambient_context_is_still_recorded_and_flagged(
         self, respx_mock: respx.MockRouter, traced: TracedAgent
     ) -> None:
-        respx_mock.post("/v1/data/agentcontrol/authz").mock(return_value=_allow())
+        respx_mock.post("/v1/data/agentcontrol/authz/result").mock(return_value=_allow())
         config = ControlPlaneConfig(policy=PolicyConfig(url=_URL))
         control = ControlPlane(
             config=config, policy=OPAPolicyProvider(config.policy), tracer_provider=traced.provider

@@ -122,7 +122,7 @@ The **execute tool span** requires `gen_ai.operation.name` (value `execute_tool`
 
 ## R5 — OPA request/response contract
 
-**Decision**: `POST {opa_url}/v1/data/agentcontrol/authz` with body `{"input": {…}}`; read `result` as a **structured object**, not a bare string.
+**Decision**: `POST {opa_url}/v1/data/agentcontrol/authz/result` with body `{"input": {…}}`; read `result` as a **structured object**, not a bare string. (The path is `.../authz/result`, not the bare package path `.../authz` — see R10, found after this section was first written.)
 
 **Verified types** (`refs/opa/v1/server/types/types.go`):
 
@@ -225,3 +225,28 @@ Independent of R9a, testing "this middleware's own in-memory `_pending` record w
 The fix — `AgentControlMiddleware._recover_hold_from_state` querying `agent.aget_state(config).interrupts` before falling back to `build_hold` — initially still failed to find the interrupt. Cause: `request.runtime.config` inside a `ToolNode` push-task carries a **nested `checkpoint_ns`** scoped to that task (e.g. `tools:<task-id>`), not the top-level thread. Calling `aget_state` with that task-scoped config silently returns an unrelated (typically empty) snapshot rather than raising — so the pending interrupt, which `interrupt()` recorded at the **thread** level, never surfaced. Fix: reduce the config to bare `{"configurable": {"thread_id": ...}}` before calling `aget_state` (`agentcontrol/adapters/langgraph/middleware.py::_thread_level_config`). Confirmed via direct reproduction: the same `aget_state` call against `{"configurable": {"thread_id": ...}}` finds the interrupt every time; against the full task-scoped `request.runtime.config`, it never does.
 
 `StateSnapshot.interrupts` and `CompiledStateGraph.aget_state` are verified at `refs/langgraph/libs/langgraph/langgraph/pregel/main.py:1436` (signature) and `types.py:643-661` (`StateSnapshot` fields, `interrupts: tuple[Interrupt, ...]`).
+
+---
+
+## R10 — the OPA endpoint path was wrong, and the mocked test transport hid it
+
+**Found by**: installing a real `opa` binary (1.19.0) and running `opa run --server` against the shipped `policies/tool_authorization.rego` bundle, then comparing its actual HTTP responses against what `OPAPolicyProvider` assumed. Every integration and unit test up to this point mocked the transport with `respx`, asserting the response shape the client code *expected* — which is exactly the failure mode of a mock: it validates internal consistency, not correctness against the real system.
+
+**The bug**: `PolicyConfig.path` defaulted to `"agentcontrol/authz"` — the Rego *package* path. Querying a package's data document returns every public rule and `:=` var in that package as siblings, not just one rule's value. The shipped bundle's package also defines `injection_block_threshold` and `review_window_seconds` as module-level constants (used internally by the `result` rules), so `POST /v1/data/agentcontrol/authz` against a real server returns:
+
+```json
+{
+  "decision_id": "...",
+  "result": {
+    "result": {"decision": "deny", "policy_id": "...", "reason": "...", "review_timeout_seconds": 900},
+    "injection_block_threshold": 0.8,
+    "review_window_seconds": 900
+  }
+}
+```
+
+— i.e. the decision object the client wants is at `body["result"]["result"]`, not `body["result"]`. `OPAPolicyProvider._build_result` reads `body["result"]["decision"]` directly, so against a real OPA server every call would have failed with `_unavailable("policy returned decision None, expected one of ['allow', 'deny', 'review']")` — a silent fail-closed on every request, indistinguishable at the API boundary from OPA actually being down.
+
+**Fix**: `PolicyConfig.path` default changed to `"agentcontrol/authz/result"` — the rule directly, not the package. Verified against the real server both ways: `/v1/data/agentcontrol/authz/result` returns exactly `{"decision_id": "...", "result": {"decision": "...", ...}}`, the shape every other part of this design already assumes. `opa test policies/` was also run for the first time (6/6 pass) as part of this pass, confirming the Rego bundle itself was correct all along — the bug was entirely in how the client addressed it over HTTP.
+
+**Lesson carried forward**: a mocked transport proves the client parses what it expects; it cannot prove the client asks the right question. `respx` fixtures across the test suite were updated to mock `/v1/data/agentcontrol/authz/result` to match reality, but the *original* bug would have shipped past every one of them. Anywhere this codebase talks to a real network service, at least one test against the real thing — not a mock of it — is what actually verifies the contract, not just the parsing logic. This project got lucky that a real `opa` binary happened to become available mid-session; nothing about the design forced this check to happen before merge.

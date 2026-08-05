@@ -45,6 +45,9 @@ jobs:
           for i in $(seq 1 30); do
             curl -sf localhost:8181/health && break || sleep 1
           done
+      # tests/integration/test_live_opa.py auto-detects this server and runs against
+      # it for real, rather than a mocked transport — this is what caught research
+      # R10 (a wrong policy.path default that every mocked test had missed).
       - run: uv run pytest tests/integration -q
 
   policy:

@@ -49,7 +49,7 @@ class TestWatchdog:
     async def test_expired_hold_auto_resolves_without_a_human_resuming(
         self, respx_mock: respx.MockRouter, traced: TracedAgent
     ) -> None:
-        respx_mock.post("/v1/data/agentcontrol/authz").mock(return_value=_review(timeout=1))
+        respx_mock.post("/v1/data/agentcontrol/authz/result").mock(return_value=_review(timeout=1))
         config = ControlPlaneConfig(
             policy=PolicyConfig(url=_URL),
             review=ReviewConfig(watchdog_poll_seconds=0.2),
@@ -97,7 +97,7 @@ class TestWatchdog:
         self, respx_mock: respx.MockRouter, traced: TracedAgent
     ) -> None:
         """aclose() must not hang or raise even mid-poll-cycle."""
-        respx_mock.post("/v1/data/agentcontrol/authz").mock(return_value=_review(timeout=60))
+        respx_mock.post("/v1/data/agentcontrol/authz/result").mock(return_value=_review(timeout=60))
         config = ControlPlaneConfig(
             policy=PolicyConfig(url=_URL),
             review=ReviewConfig(watchdog_poll_seconds=0.1),

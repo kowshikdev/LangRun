@@ -8,7 +8,7 @@ It is not a new agent framework, tracer, guardrail library, or eval engine. It i
 
 ## Status
 
-**v0.1 implemented.** All four user stories (block unauthorized actions, explain decisions from telemetry, human review with durable timeouts, fail-loud capability validation) are built and tested — 154 tests passing, 1 honestly skipped (needs a live MCP server this environment doesn't have).
+**v0.1 implemented.** All four user stories (block unauthorized actions, explain decisions from telemetry, human review with durable timeouts, fail-loud capability validation) are built and tested — 161 tests passing, 6 honestly skipped without extra tooling (5 need a live `opa run --server`, 1 needs a live MCP server). With a real OPA up, that's 166 passing.
 
 | Artifact | State |
 |---|---|
@@ -20,7 +20,7 @@ It is not a new agent framework, tracer, guardrail library, or eval engine. It i
 | Library code — `agentcontrol/` | Implemented: types, config, OTel recorder, OPA provider, LangGraph adapter/middleware/review, `ControlPlane` |
 | Tests — `tests/{unit,integration,conformance}/` | 154 passing, 1 skipped (MCP conformance needs a live server) |
 
-Two real bugs were found and fixed during implementation, not just planned around — see [research.md §R9](./specs/001-agentcontrol-runtime-governance/research.md) for both, with reproductions.
+Three real bugs were found and fixed during implementation, not just planned around — see [research.md §R9](./specs/001-agentcontrol-runtime-governance/research.md) and [§R10](./specs/001-agentcontrol-runtime-governance/research.md) for all three, with reproductions. The third (§R10) is a reminder worth keeping in mind for any future work here: every OPA request was mocked in tests until a real `opa` binary was installed post-implementation and immediately found the default endpoint path was wrong — every mocked test had been asserting the client's own assumption, not deriving it from what a real server actually returns.
 
 ## What v0.1 does
 

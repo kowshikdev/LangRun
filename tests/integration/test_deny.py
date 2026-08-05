@@ -71,7 +71,7 @@ class TestDeny:
     async def test_destructive_tool_never_executes(
         self, respx_mock: respx.MockRouter, traced: TracedAgent
     ) -> None:
-        respx_mock.post("/v1/data/agentcontrol/authz").mock(return_value=_deny_response())
+        respx_mock.post("/v1/data/agentcontrol/authz/result").mock(return_value=_deny_response())
         control = _build(respx_mock=respx_mock, traced=traced, tools=[delete_repository])
         model = ScriptedToolCallingModel(
             script=[[tool_call("delete_repository", {"repo": "company/production"}, "c1")]]
@@ -92,7 +92,7 @@ class TestDeny:
     async def test_agent_keeps_reasoning_after_denial(
         self, respx_mock: respx.MockRouter, traced: TracedAgent
     ) -> None:
-        respx_mock.post("/v1/data/agentcontrol/authz").mock(return_value=_deny_response())
+        respx_mock.post("/v1/data/agentcontrol/authz/result").mock(return_value=_deny_response())
         control = _build(respx_mock=respx_mock, traced=traced, tools=[delete_repository])
         model = ScriptedToolCallingModel(
             script=[[tool_call("delete_repository", {"repo": "x"}, "c1")]]
@@ -112,7 +112,7 @@ class TestDeny:
     ) -> None:
         from agentcontrol.core import semconv
 
-        respx_mock.post("/v1/data/agentcontrol/authz").mock(return_value=_deny_response())
+        respx_mock.post("/v1/data/agentcontrol/authz/result").mock(return_value=_deny_response())
         control = _build(respx_mock=respx_mock, traced=traced, tools=[delete_repository])
         model = ScriptedToolCallingModel(
             script=[[tool_call("delete_repository", {"repo": "x"}, "c1")]]
@@ -159,7 +159,7 @@ class TestTrustDimension:
     async def test_same_tool_trusted_allowed_untrusted_denied(
         self, respx_mock: respx.MockRouter, traced: TracedAgent
     ) -> None:
-        respx_mock.post("/v1/data/agentcontrol/authz").mock(
+        respx_mock.post("/v1/data/agentcontrol/authz/result").mock(
             side_effect=_trust_dependent_response
         )
         config = ControlPlaneConfig(policy=PolicyConfig(url=_URL))

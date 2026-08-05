@@ -158,7 +158,7 @@ ControlPlaneConfig 1 ── 1 RequiredCapabilities
 | Setting | Default | Constraint |
 |---|---|---|
 | `policy.url` | — | required when a policy provider is configured |
-| `policy.path` | `agentcontrol/authz` | Rego package path under `/v1/data/` |
+| `policy.path` | `agentcontrol/authz/result` | Path to the `result` rule under `/v1/data/` — the bare package path returns every public rule/var as siblings (research R10) |
 | `policy.timeout_ms` | `300` | locked decision §4.5 |
 | `policy.fail_mode` | `closed` | `open` is explicit per deployment and logged on every use (FR-011) |
 | `review.default_timeout_seconds` | `900` | fallback only; policy value wins (FR-016) |

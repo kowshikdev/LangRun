@@ -35,7 +35,7 @@ def _provider(*, fail_mode: str = "closed") -> OPAPolicyProvider:
 @pytest.mark.respx(base_url=_URL)
 class TestOPAAuthorize:
     async def test_allow_maps_to_control_result(self, respx_mock: respx.MockRouter) -> None:
-        respx_mock.post("/v1/data/agentcontrol/authz").mock(
+        respx_mock.post("/v1/data/agentcontrol/authz/result").mock(
             return_value=httpx.Response(
                 200,
                 json={
@@ -59,7 +59,7 @@ class TestOPAAuthorize:
     async def test_review_requires_timeout_in_response(
         self, respx_mock: respx.MockRouter
     ) -> None:
-        respx_mock.post("/v1/data/agentcontrol/authz").mock(
+        respx_mock.post("/v1/data/agentcontrol/authz/result").mock(
             return_value=httpx.Response(
                 200,
                 json={"result": {"decision": "review", "reason": "hold", "policy_id": "p.r"}},
@@ -78,7 +78,7 @@ class TestFailClosedMatrix:
     """Every row is a provider failure: unavailable=True, fail-mode verdict, no policy_id."""
 
     async def test_connect_error(self, respx_mock: respx.MockRouter) -> None:
-        respx_mock.post("/v1/data/agentcontrol/authz").mock(
+        respx_mock.post("/v1/data/agentcontrol/authz/result").mock(
             side_effect=httpx.ConnectError("refused")
         )
         result = await _provider().authorize(_intent())
@@ -88,7 +88,7 @@ class TestFailClosedMatrix:
         assert result.fail_mode_applied == "closed"
 
     async def test_timeout(self, respx_mock: respx.MockRouter) -> None:
-        respx_mock.post("/v1/data/agentcontrol/authz").mock(
+        respx_mock.post("/v1/data/agentcontrol/authz/result").mock(
             side_effect=httpx.TimeoutException("slow")
         )
         result = await _provider().authorize(_intent())
@@ -96,7 +96,7 @@ class TestFailClosedMatrix:
         assert result.verdict is Verdict.DENY
 
     async def test_non_2xx_status(self, respx_mock: respx.MockRouter) -> None:
-        respx_mock.post("/v1/data/agentcontrol/authz").mock(
+        respx_mock.post("/v1/data/agentcontrol/authz/result").mock(
             return_value=httpx.Response(500, text="internal error")
         )
         result = await _provider().authorize(_intent())
@@ -104,7 +104,7 @@ class TestFailClosedMatrix:
         assert result.verdict is Verdict.DENY
 
     async def test_non_json_body(self, respx_mock: respx.MockRouter) -> None:
-        respx_mock.post("/v1/data/agentcontrol/authz").mock(
+        respx_mock.post("/v1/data/agentcontrol/authz/result").mock(
             return_value=httpx.Response(200, text="not json")
         )
         result = await _provider().authorize(_intent())
@@ -114,7 +114,7 @@ class TestFailClosedMatrix:
         self, respx_mock: respx.MockRouter
     ) -> None:
         """The dangerous row: OPA's HTTP status is 200 but the document is undefined."""
-        respx_mock.post("/v1/data/agentcontrol/authz").mock(
+        respx_mock.post("/v1/data/agentcontrol/authz/result").mock(
             return_value=httpx.Response(200, json={})
         )
         result = await _provider().authorize(_intent())
@@ -122,7 +122,7 @@ class TestFailClosedMatrix:
         assert result.verdict is Verdict.DENY
 
     async def test_decision_outside_enforceable_set(self, respx_mock: respx.MockRouter) -> None:
-        respx_mock.post("/v1/data/agentcontrol/authz").mock(
+        respx_mock.post("/v1/data/agentcontrol/authz/result").mock(
             return_value=httpx.Response(
                 200,
                 json={"result": {"decision": "maybe", "reason": "?", "policy_id": "p"}},
@@ -135,7 +135,7 @@ class TestFailClosedMatrix:
     async def test_unavailable_never_carries_a_policy_id(
         self, respx_mock: respx.MockRouter
     ) -> None:
-        respx_mock.post("/v1/data/agentcontrol/authz").mock(
+        respx_mock.post("/v1/data/agentcontrol/authz/result").mock(
             side_effect=httpx.ConnectError("refused")
         )
         result = await _provider().authorize(_intent())
@@ -147,7 +147,7 @@ class TestFailOpenOverride:
     async def test_fail_open_allows_and_marks_unavailable(
         self, respx_mock: respx.MockRouter, caplog: pytest.LogCaptureFixture
     ) -> None:
-        respx_mock.post("/v1/data/agentcontrol/authz").mock(
+        respx_mock.post("/v1/data/agentcontrol/authz/result").mock(
             side_effect=httpx.ConnectError("refused")
         )
         provider = _provider(fail_mode="open")
@@ -161,7 +161,7 @@ class TestFailOpenOverride:
     async def test_fail_open_warns_on_every_occurrence(
         self, respx_mock: respx.MockRouter, caplog: pytest.LogCaptureFixture
     ) -> None:
-        respx_mock.post("/v1/data/agentcontrol/authz").mock(
+        respx_mock.post("/v1/data/agentcontrol/authz/result").mock(
             side_effect=httpx.ConnectError("refused")
         )
         provider = _provider(fail_mode="open")

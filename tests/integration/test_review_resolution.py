@@ -63,7 +63,7 @@ class TestApprove:
     async def test_approval_executes_the_tool(
         self, respx_mock: respx.MockRouter, traced: TracedAgent
     ) -> None:
-        respx_mock.post("/v1/data/agentcontrol/authz").mock(return_value=_review(timeout=60))
+        respx_mock.post("/v1/data/agentcontrol/authz/result").mock(return_value=_review(timeout=60))
         agent = _build(traced)
         thread = {"configurable": {"thread_id": "approve-1"}}
 
@@ -82,7 +82,7 @@ class TestApprove:
     async def test_approval_span_recorded_as_approved(
         self, respx_mock: respx.MockRouter, traced: TracedAgent
     ) -> None:
-        respx_mock.post("/v1/data/agentcontrol/authz").mock(return_value=_review(timeout=60))
+        respx_mock.post("/v1/data/agentcontrol/authz/result").mock(return_value=_review(timeout=60))
         agent = _build(traced)
         thread = {"configurable": {"thread_id": "approve-2"}}
         await agent.ainvoke({"messages": [{"role": "user", "content": "go"}]}, thread)
@@ -103,7 +103,7 @@ class TestReject:
     async def test_rejection_denies_and_does_not_execute(
         self, respx_mock: respx.MockRouter, traced: TracedAgent
     ) -> None:
-        respx_mock.post("/v1/data/agentcontrol/authz").mock(return_value=_review(timeout=60))
+        respx_mock.post("/v1/data/agentcontrol/authz/result").mock(return_value=_review(timeout=60))
         agent = _build(traced)
         thread = {"configurable": {"thread_id": "reject-1"}}
         await agent.ainvoke({"messages": [{"role": "user", "content": "go"}]}, thread)
@@ -119,7 +119,7 @@ class TestReject:
     async def test_rejection_span_recorded_as_rejected(
         self, respx_mock: respx.MockRouter, traced: TracedAgent
     ) -> None:
-        respx_mock.post("/v1/data/agentcontrol/authz").mock(return_value=_review(timeout=60))
+        respx_mock.post("/v1/data/agentcontrol/authz/result").mock(return_value=_review(timeout=60))
         agent = _build(traced)
         thread = {"configurable": {"thread_id": "reject-2"}}
         await agent.ainvoke({"messages": [{"role": "user", "content": "go"}]}, thread)

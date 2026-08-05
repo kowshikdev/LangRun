@@ -67,7 +67,7 @@ class TestExpiry:
     async def test_late_approval_is_denied_anyway(
         self, respx_mock: respx.MockRouter, traced: TracedAgent
     ) -> None:
-        respx_mock.post("/v1/data/agentcontrol/authz").mock(return_value=_review(timeout=1))
+        respx_mock.post("/v1/data/agentcontrol/authz/result").mock(return_value=_review(timeout=1))
         agent, thread = _build(traced, thread_id="expire-1")
         await agent.ainvoke({"messages": [{"role": "user", "content": "go"}]}, thread)
 
@@ -82,7 +82,7 @@ class TestExpiry:
     async def test_expiry_recorded_as_timed_out_not_rejected(
         self, respx_mock: respx.MockRouter, traced: TracedAgent
     ) -> None:
-        respx_mock.post("/v1/data/agentcontrol/authz").mock(return_value=_review(timeout=1))
+        respx_mock.post("/v1/data/agentcontrol/authz/result").mock(return_value=_review(timeout=1))
         agent, thread = _build(traced, thread_id="expire-2")
         await agent.ainvoke({"messages": [{"role": "user", "content": "go"}]}, thread)
         await asyncio.sleep(1.2)
@@ -101,7 +101,7 @@ class TestExpiry:
         self, respx_mock: respx.MockRouter, traced: TracedAgent
     ) -> None:
         """Negative control: a generous window does not spuriously expire."""
-        respx_mock.post("/v1/data/agentcontrol/authz").mock(return_value=_review(timeout=100))
+        respx_mock.post("/v1/data/agentcontrol/authz/result").mock(return_value=_review(timeout=100))
         agent, thread = _build(traced, thread_id="expire-3")
         await agent.ainvoke({"messages": [{"role": "user", "content": "go"}]}, thread)
 
@@ -117,7 +117,7 @@ class TestPolicyDrivenWindow:
     async def test_changing_the_policy_window_changes_behavior_with_no_code_change(
         self, respx_mock: respx.MockRouter, traced: TracedAgent
     ) -> None:
-        route = respx_mock.post("/v1/data/agentcontrol/authz")
+        route = respx_mock.post("/v1/data/agentcontrol/authz/result")
 
         route.mock(return_value=_review(timeout=1))
         short_agent, short_thread = _build(traced, thread_id="window-short")
